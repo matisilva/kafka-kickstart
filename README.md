@@ -1,68 +1,94 @@
-# kafka-kickstart
-Just jupyter notebooks to get introduced to kafka through python clients.
+# Kafka kickstart
 
+A set of commands to get introduced to Kafka using kafka-cli and a kafka python 
+client.
 
-## How to setup our own Kafka cluster (Linux)?
-- Install java8
-- Download kafka https://kafka.apache.org/downloads
-- (Optional) add kafka PATH to your bashrc
-- Make data folder for persistent data 
-- Make zookeeper and kafka folder inside data
-- Setup zookeper.properties (dataDir field) and server.properties (logs.dirs field) with created folders respectively.
-- Start zookeeper
-```
-	./bin/zookeeper-server-start.sh config/zookeeper.properties
-```
-- Then start kafka
-```
-	kafka-server-start.sh config/server.properties
+## Run Kafka cluster
+To run the Kafka cluster you need to have _docker_ and _docker-compose_ installed,
+then you just simple run 
+```sh
+docker-compose -f docker/docker-compose.yml up -d
 ```
 
-## Test our cluster with kafka-cli
-- Create topic
+You can check the status of each container with
+```sh
+docker ps
 ```
-kafka-topics.sh --create \
-  --zookeeper localhost:2181 \
-  --replication-factor 1 --partitions 13 \
-  --topic my-topic
+or with
+```sh
+docker-compose -f docker/docker-compose.yml ps
+```
+
+## Test you cluster with kafka-cli
+Since the Kafka cluster is running in docker container we need to execute the 
+commands within the docker container. In order to get us inside the container 
+we need to run
+```sh
+docker exec -it broker bash
+```
+or 
+```sh
+docker-compose -f docker/docker-compose.yml exec broker bash
+```
+
+- Creating a new topic
+```sh
+/bin/kafka-topics --create --zookeeper zookeeper:2181 --replication-factor 1 --partitions 13 --topic my-topic
 ```
 - List topics
+```sh
+/bin/kafka-topics --list --zookeeper zookeeper:2181
 ```
-kafka/bin/kafka-topics.sh --list \
-    --zookeeper localhost:2181
+- Produce messages into a topic
+```sh
+/bin/kafka-console-producear --broker-list broker:9092 --topic my-topic
 ```
-
-- Producer
+- Consumer messages in a topic (from beginning)
+```sh
+/bin/kafka-console-consumer --bootstrap-server broker:9092 --topic my-topic --from-beginning
 ```
-kafka/bin/kafka-console-producer.sh \
-    --broker-list localhost:9092 \
-    --topic my-topic
-```
-
-- Consumer (from beginning)
-```
-kafka/bin/kafka-console-consumer.sh \
-    --bootstrap-server localhost:9092 \
-    --topic my-topic \
-    --from-beginning
-```
-
 - Consumer (groups)
-```
-kafka/bin/kafka-console-consumer.sh \
-    --bootstrap-server localhost:9092 \
-    --topic my-topic \
-    --group my-first-group
+```sh
+/bin/kafka-console-consumer --bootstrap-server broker:9092 --topic my-topic --group my-first-group
 ```
 
-## How to install jupyter notebooks?
-```
-	pip install jupyterlab
+## Using Kafka from Python
+
+We can find several kafka clients for Python, in this case we will use 
+`kafka-python`
+
+```sh
+pip3 install kafka-python
 ```
 
-## How to test our notebooks?
-Get zookeeper and kafka running and start notebooks and run cells
+- Kafka Producer
+```Python
+import json
+from kafka import KafkaProducer
+
+topic_name = "my-topic"
+producer = KafkaProducer(
+  bootstrap_servers="localhost:9093",
+  value_serializer=lambda x: json.dumps(x).encode()
+)
+
+producer.send(topic_name, value={"key": "value"})
+producer.flush()
 ```
-	jupyter notebook
+
+- Kafka Consumer
+```Python
+import json
+from kafka import KafkaConsumer
+
+
+consumer = KafkaConsumer(
+    "my-topic",
+    bootstrap_servers="localhost:9093",
+    value_deserializer=lambda x: json.loads(x.decode())
+)
+
+for msg in consumer:
+    print(msg.value)
 ```
 
